@@ -12,6 +12,7 @@ export default function UserDashboard() {
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [availableCourses, setAvailableCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [coursesLoading, setCoursesLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [courseContent, setCourseContent] = useState({
@@ -27,11 +28,11 @@ export default function UserDashboard() {
   const [completedNotes, setCompletedNotes] = useState([]);
   const [completedQuizzes, setCompletedQuizzes] = useState([]);
   
-  // New states for profile photo
+  // Profile photo states
   const [profilePhoto, setProfilePhoto] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   
-  // New states for quiz timer and enhanced scoring
+  // Quiz timer and scoring states
   const [quizTimer, setQuizTimer] = useState(0);
   const [timerInterval, setTimerInterval] = useState(null);
   const [questionStartTime, setQuestionStartTime] = useState({});
@@ -117,6 +118,322 @@ export default function UserDashboard() {
       accent: '#a93226',
       gradient: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
       border: '#e74c3c'
+    }
+  };
+
+  // ============================
+  // FIXED COURSE FETCHING FUNCTIONS
+  // ============================
+
+  // Enhanced course fetching with better error handling and fallbacks
+  const fetchCoursesFromAdminDashboard = async () => {
+    try {
+      console.log("🔄 Starting course fetch process...");
+      setCoursesLoading(true);
+      
+      let courses = [];
+      let fetchMethod = '';
+
+      // Define default courses as fallback
+      const defaultCourses = [
+        {
+          _id: '1',
+          title: "Clinical Research Associate",
+          description: "Become a certified Clinical Research Associate with comprehensive training in monitoring, compliance, and trial management.",
+          instructor: "Dr. Ananya Sharma",
+          duration: "16 weeks",
+          level: "Advanced",
+          price: "₹1,29,999",
+          image: "https://images.pexels.com/photos/733856/pexels-photo-733856.jpeg",
+          features: [
+            "Clinical Trial Monitoring",
+            "Regulatory Compliance",
+            "Site Management",
+            "ICH-GCP Certification"
+          ]
+        },
+        {
+          _id: '2',
+          title: "Bioinformatics & Genomics",
+          description: "Master computational biology, genomic data analysis, and next-generation sequencing technologies.",
+          instructor: "Prof. Rajiv Menon",
+          duration: "20 weeks",
+          level: "Intermediate",
+          price: "₹1,49,999",
+          image: "https://images.pexels.com/photos/4144923/pexels-photo-4144923.jpeg",
+          features: [
+            "Genomic Data Analysis",
+            "Python for Bioinformatics",
+            "NGS Data Processing",
+            "Drug Discovery Tools"
+          ]
+        },
+        {
+          _id: '3',
+          title: "Medical Writing & Documentation",
+          description: "Master the art of scientific writing for clinical research protocols, reports, and regulatory submissions.",
+          instructor: "Dr. Priya Mehta",
+          duration: "12 weeks",
+          level: "Intermediate",
+          price: "₹89,999",
+          image: "https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg",
+          features: [
+            "Protocol Writing",
+            "Clinical Study Reports",
+            "Regulatory Documentation",
+            "Medical Communication"
+          ]
+        },
+        {
+          _id: '4',
+          title: "Regulatory Affairs in Clinical Research",
+          description: "Comprehensive training in regulatory submissions, compliance, and approval processes for clinical trials.",
+          instructor: "Dr. Sameer Joshi",
+          duration: "18 weeks",
+          level: "Advanced",
+          price: "₹1,19,999",
+          image: "https://images.pexels.com/photos/356040/pexels-photo-356040.jpeg",
+          features: [
+            "FDA/EMA Regulations",
+            "IND/NDA Submissions",
+            "Clinical Trial Applications",
+            "Compliance Monitoring"
+          ]
+        },
+        {
+          _id: '5',
+          title: "Pharmacovigilance & Drug Safety",
+          description: "Learn drug safety monitoring, adverse event reporting, and risk management in clinical development.",
+          instructor: "Dr. Neha Kapoor",
+          duration: "14 weeks",
+          level: "Intermediate",
+          price: "₹99,999",
+          image: "https://images.pexels.com/photos/2280571/pexels-photo-2280571.jpeg",
+          features: [
+            "Adverse Event Reporting",
+            "Risk Management Plans",
+            "Safety Database Management",
+            "Periodic Safety Reports"
+          ]
+        }
+      ];
+
+      // Method 1: Try AdminDashboard API with timeout
+      try {
+        console.log("📡 Attempting API fetch...");
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
+        const response = await fetch('http://localhost:5000/api/admin/courses', {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          courses = await response.json();
+          fetchMethod = 'API';
+          console.log("✅ Courses fetched from API:", courses.length);
+          
+          // Cache in localStorage for future use
+          try {
+            localStorage.setItem('adminCourses', JSON.stringify(courses));
+            localStorage.setItem('adminCourses_timestamp', Date.now().toString());
+          } catch (storageError) {
+            console.warn("⚠ Could not cache courses in localStorage");
+          }
+        } else {
+          throw new Error(`API returned ${response.status}`);
+        }
+      } catch (apiError) {
+        console.log("❌ API fetch failed:", apiError.message);
+        
+        // Method 2: Try localStorage cache
+        try {
+          const cachedCourses = localStorage.getItem('adminCourses');
+          const cacheTimestamp = localStorage.getItem('adminCourses_timestamp');
+          
+          // Use cache if it's less than 1 hour old
+          if (cachedCourses && cacheTimestamp && (Date.now() - parseInt(cacheTimestamp)) < 3600000) {
+            courses = JSON.parse(cachedCourses);
+            fetchMethod = 'localStorage Cache';
+            console.log("✅ Courses loaded from cache:", courses.length);
+          } else {
+            throw new Error('No valid cache available');
+          }
+        } catch (cacheError) {
+          console.log("❌ Cache load failed:", cacheError.message);
+          
+          // Method 3: Use default courses
+          courses = defaultCourses;
+          fetchMethod = 'Default Courses';
+          console.log("✅ Using default courses:", courses.length);
+          
+          // Cache the default courses
+          try {
+            localStorage.setItem('adminCourses', JSON.stringify(courses));
+            localStorage.setItem('adminCourses_timestamp', Date.now().toString());
+          } catch (storageError) {
+            console.warn("⚠ Could not cache default courses");
+          }
+        }
+      }
+
+      // Validate courses data
+      if (!Array.isArray(courses) || courses.length === 0) {
+        console.warn("⚠ Invalid courses data, using defaults");
+        courses = defaultCourses;
+        fetchMethod = 'Fallback Defaults';
+      }
+
+      console.log(`✅ Final courses loaded (${fetchMethod}):`, courses.length);
+      setAvailableCourses(courses);
+      return courses;
+
+    } catch (error) {
+      console.error('❌ Critical error in course fetching:', error);
+      
+      // Ultimate fallback
+      const fallbackCourses = [
+        {
+          _id: '1',
+          title: "Clinical Research Associate",
+          description: "Become a certified Clinical Research Associate with comprehensive training.",
+          instructor: "Dr. Ananya Sharma",
+          duration: "16 weeks",
+          level: "Advanced",
+          price: "₹1,29,999",
+          image: "https://images.pexels.com/photos/733856/pexels-photo-733856.jpeg",
+          features: ["Clinical Trial Monitoring", "Regulatory Compliance"]
+        }
+      ];
+      
+      setAvailableCourses(fallbackCourses);
+      return fallbackCourses;
+    } finally {
+      setCoursesLoading(false);
+      console.log("🏁 Course fetching completed");
+    }
+  };
+
+  // Enhanced fetchCourseContent with better error handling
+  const fetchCourseContent = async (courseId) => {
+    if (!courseId) {
+      console.error("❌ No courseId provided to fetchCourseContent");
+      return;
+    }
+
+    console.log("🔄 Fetching course content for:", courseId);
+    
+    try {
+      let videos = [];
+      let notes = [];
+      let quizzes = [];
+
+      // Try to fetch from AdminDashboard APIs with timeout
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const [videosResponse, notesResponse, quizzesResponse] = await Promise.allSettled([
+          fetch(`http://localhost:5000/api/admin/videos/course/${courseId}`, { signal: controller.signal }),
+          fetch(`http://localhost:5000/api/admin/notes/course/${courseId}`, { signal: controller.signal }),
+          fetch(`http://localhost:5000/api/admin/quizzes/course/${courseId}`, { signal: controller.signal })
+        ]);
+
+        clearTimeout(timeoutId);
+
+        if (videosResponse.status === 'fulfilled' && videosResponse.value.ok) {
+          videos = await videosResponse.value.json();
+        }
+        if (notesResponse.status === 'fulfilled' && notesResponse.value.ok) {
+          notes = await notesResponse.value.json();
+        }
+        if (quizzesResponse.status === 'fulfilled' && quizzesResponse.value.ok) {
+          quizzes = await quizzesResponse.value.json();
+        }
+
+      } catch (apiError) {
+        console.log("⚠ AdminDashboard APIs not available, checking localStorage...");
+      }
+
+      // If no content found, use fallback content
+      if (videos.length === 0 && notes.length === 0 && quizzes.length === 0) {
+        console.log("📋 Using fallback content for course:", courseId);
+        
+        videos = [
+          {
+            _id: `video_${courseId}_1`,
+            title: "Introduction to Course",
+            description: "Get started with the course overview and learning objectives",
+            duration: "45:30",
+            course: courseId,
+            module: "Module 1: Fundamentals",
+            order: 1,
+            videoUrl: "https://example.com/videos/introduction.mp4",
+            thumbnail: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+            views: 0,
+            likes: 0,
+            createdAt: new Date().toISOString()
+          }
+        ];
+
+        notes = [
+          {
+            _id: `note_${courseId}_1`,
+            title: "Course Study Guide",
+            description: "Comprehensive study material for the entire course",
+            fileType: "pdf",
+            pages: "45",
+            course: courseId,
+            fileUrl: "https://example.com/notes/study-guide.pdf",
+            downloads: 0,
+            createdAt: new Date().toISOString()
+          }
+        ];
+
+        quizzes = [
+          {
+            _id: `quiz_${courseId}_1`,
+            title: "Module 1 Assessment",
+            description: "Test your knowledge from the first module",
+            course: courseId,
+            timeLimit: 30,
+            passingScore: 70,
+            questions: [
+              {
+                questionText: "What is the primary goal of this course?",
+                options: [
+                  { optionText: "To provide comprehensive knowledge and skills", isCorrect: true },
+                  { optionText: "To complete quickly", isCorrect: false },
+                  { optionText: "To get a certificate only", isCorrect: false },
+                  { optionText: "To learn basic concepts only", isCorrect: false }
+                ]
+              }
+            ],
+            attempts: 0,
+            averageScore: 0,
+            createdAt: new Date().toISOString()
+          }
+        ];
+      }
+
+      console.log("✅ Course content loaded:", {
+        videos: videos.length,
+        notes: notes.length,
+        quizzes: quizzes.length
+      });
+
+      setCourseContent({ videos, notes, quizzes });
+
+    } catch (error) {
+      console.error('❌ Error fetching course content:', error);
+      // Set minimal fallback content
+      setCourseContent({
+        videos: [],
+        notes: [],
+        quizzes: []
+      });
     }
   };
 
@@ -272,365 +589,6 @@ export default function UserDashboard() {
       
       img.onerror = (error) => reject(error);
     });
-  };
-
-  // ============================
-  // COURSE CONTENT FETCHING FROM ADMIN DASHBOARD
-  // ============================
-
-  // Fetch course content from AdminDashboard
-  const fetchCourseContent = async (courseId) => {
-    console.log("🔄 Fetching course content for courseId:", courseId);
-    
-    try {
-      let videos = [];
-      let notes = [];
-      let quizzes = [];
-
-      // Method 1: Try to fetch from AdminDashboard APIs
-      try {
-        console.log("📡 Attempting to fetch from AdminDashboard APIs...");
-        
-        const [videosResponse, notesResponse, quizzesResponse] = await Promise.all([
-          fetch(`http://localhost:5000/api/admin/videos/course/${courseId}`),
-          fetch(`http://localhost:5000/api/admin/notes/course/${courseId}`),
-          fetch(`http://localhost:5000/api/admin/quizzes/course/${courseId}`)
-        ]);
-
-        if (videosResponse.ok) {
-          videos = await videosResponse.json();
-          console.log("🎬 Videos from AdminDashboard API:", videos.length);
-        }
-
-        if (notesResponse.ok) {
-          notes = await notesResponse.json();
-          console.log("📝 Notes from AdminDashboard API:", notes.length);
-        }
-
-        if (quizzesResponse.ok) {
-          quizzes = await quizzesResponse.json();
-          console.log("❓ Quizzes from AdminDashboard API:", quizzes.length);
-        }
-
-      } catch (apiError) {
-        console.log("⚠ AdminDashboard APIs not available, checking localStorage...");
-      }
-
-      // Method 2: Check localStorage for AdminDashboard data
-      if (videos.length === 0 && notes.length === 0 && quizzes.length === 0) {
-        try {
-          const adminVideos = JSON.parse(localStorage.getItem('adminVideos') || '[]');
-          const adminNotes = JSON.parse(localStorage.getItem('adminNotes') || '[]');
-          const adminQuizzes = JSON.parse(localStorage.getItem('adminQuizzes') || '[]');
-
-          videos = adminVideos.filter(video => video.course === courseId);
-          notes = adminNotes.filter(note => note.course === courseId);
-          quizzes = adminQuizzes.filter(quiz => quiz.course === courseId);
-
-          console.log("📊 Found in localStorage:", {
-            videos: videos.length,
-            notes: notes.length,
-            quizzes: quizzes.length
-          });
-
-        } catch (localStorageError) {
-          console.log("⚠ localStorage method failed");
-        }
-      }
-
-      // Method 3: Use fallback data if nothing found
-      if (videos.length === 0 && notes.length === 0 && quizzes.length === 0) {
-        console.log("📋 Using fallback content for course:", courseId);
-        
-        // Fallback videos
-        videos = [
-          {
-            _id: `video_${courseId}_1`,
-            title: "Introduction to Course",
-            description: "Get started with the course overview and learning objectives",
-            duration: "45:30",
-            course: courseId,
-            module: "Module 1: Fundamentals",
-            order: 1,
-            videoUrl: "https://example.com/videos/introduction.mp4",
-            thumbnail: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-            views: 0,
-            likes: 0,
-            createdAt: new Date().toISOString()
-          },
-          {
-            _id: `video_${courseId}_2`,
-            title: "Advanced Concepts",
-            description: "Deep dive into advanced topics and practical applications",
-            duration: "52:15",
-            course: courseId,
-            module: "Module 2: Advanced Topics",
-            order: 2,
-            videoUrl: "https://example.com/videos/advanced.mp4",
-            thumbnail: "https://images.unsplash.com/photo-1581091226835-a8a0058f0a35?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-            views: 0,
-            likes: 0,
-            createdAt: new Date().toISOString()
-          }
-        ];
-
-        // Fallback notes
-        notes = [
-          {
-            _id: `note_${courseId}_1`,
-            title: "Course Study Guide",
-            description: "Comprehensive study material for the entire course",
-            fileType: "pdf",
-            pages: "45",
-            course: courseId,
-            fileUrl: "https://example.com/notes/study-guide.pdf",
-            downloads: 0,
-            createdAt: new Date().toISOString()
-          },
-          {
-            _id: `note_${courseId}_2`,
-            title: "Practice Exercises",
-            description: "Hands-on exercises to reinforce learning",
-            fileType: "pdf",
-            pages: "23",
-            course: courseId,
-            fileUrl: "https://example.com/notes/exercises.pdf",
-            downloads: 0,
-            createdAt: new Date().toISOString()
-          }
-        ];
-
-        // Fallback quizzes
-        quizzes = [
-          {
-            _id: `quiz_${courseId}_1`,
-            title: "Module 1 Assessment",
-            description: "Test your knowledge from the first module",
-            course: courseId,
-            timeLimit: 30,
-            passingScore: 70,
-            questions: [
-              {
-                questionText: "What is the primary goal of this course?",
-                options: [
-                  { optionText: "To provide comprehensive knowledge and skills", isCorrect: true },
-                  { optionText: "To complete quickly", isCorrect: false },
-                  { optionText: "To get a certificate only", isCorrect: false },
-                  { optionText: "To learn basic concepts only", isCorrect: false }
-                ]
-              },
-              {
-                questionText: "Which skill is most important for success in this field?",
-                options: [
-                  { optionText: "Attention to detail", isCorrect: true },
-                  { optionText: "Speed", isCorrect: false },
-                  { optionText: "Memorization", isCorrect: false },
-                  { optionText: "Creativity", isCorrect: false }
-                ]
-              }
-            ],
-            attempts: 0,
-            averageScore: 0,
-            createdAt: new Date().toISOString()
-          }
-        ];
-      }
-
-      console.log("✅ Final content loaded for course", courseId, ":", {
-        videosCount: videos.length,
-        notesCount: notes.length,
-        quizzesCount: quizzes.length
-      });
-
-      setCourseContent({
-        videos,
-        notes,
-        quizzes
-      });
-
-    } catch (error) {
-      console.error('❌ Error fetching course content:', error);
-      
-      // Set empty content as fallback
-      setCourseContent({
-        videos: [],
-        notes: [],
-        quizzes: []
-      });
-    }
-  };
-
-  // Fetch all courses from AdminDashboard
-  const fetchCoursesFromAdminDashboard = async () => {
-    try {
-      console.log("🔄 Fetching courses from AdminDashboard...");
-      
-      let courses = [];
-
-      // Method 1: Try AdminDashboard API
-      try {
-        const response = await fetch('http://localhost:5000/api/admin/courses');
-        if (response.ok) {
-          courses = await response.json();
-          console.log("📚 Courses from AdminDashboard API:", courses.length);
-        } else {
-          throw new Error('API failed');
-        }
-      } catch (apiError) {
-        console.log("⚠ AdminDashboard API not available, checking localStorage...");
-        
-        // Method 2: Check localStorage
-        const adminCourses = JSON.parse(localStorage.getItem('adminCourses') || '[]');
-        if (adminCourses.length > 0) {
-          courses = adminCourses;
-          console.log("📚 Courses from localStorage:", courses.length);
-        } else {
-          // Method 3: Use default courses from AdminDashboard
-          courses = [
-            {
-              _id: '1',
-              title: "Clinical Research Associate",
-              description: "Become a certified Clinical Research Associate with comprehensive training in monitoring, compliance, and trial management.",
-              instructor: "Dr. Ananya Sharma",
-              duration: "16 weeks",
-              level: "Advanced",
-              price: "₹1,29,999",
-              image: "https://images.pexels.com/photos/733856/pexels-photo-733856.jpeg",
-              features: [
-                "Clinical Trial Monitoring",
-                "Regulatory Compliance",
-                "Site Management",
-                "ICH-GCP Certification"
-              ]
-            },
-            {
-              _id: '2',
-              title: "Bioinformatics & Genomics",
-              description: "Master computational biology, genomic data analysis, and next-generation sequencing technologies.",
-              instructor: "Prof. Rajiv Menon",
-              duration: "20 weeks",
-              level: "Intermediate",
-              price: "₹1,49,999",
-              image: "https://images.pexels.com/photos/4144923/pexels-photo-4144923.jpeg",
-              features: [
-                "Genomic Data Analysis",
-                "Python for Bioinformatics",
-                "NGS Data Processing",
-                "Drug Discovery Tools"
-              ]
-            },
-            {
-              _id: '3',
-              title: "Medical Writing & Documentation",
-              description: "Master the art of scientific writing for clinical research protocols, reports, and regulatory submissions.",
-              instructor: "Dr. Priya Mehta",
-              duration: "12 weeks",
-              level: "Intermediate",
-              price: "₹89,999",
-              image: "https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg",
-              features: [
-                "Protocol Writing",
-                "Clinical Study Reports",
-                "Regulatory Documentation",
-                "Medical Communication"
-              ]
-            },
-            {
-              _id: '4',
-              title: "Regulatory Affairs in Clinical Research",
-              description: "Comprehensive training in regulatory submissions, compliance, and approval processes for clinical trials.",
-              instructor: "Dr. Sameer Joshi",
-              duration: "18 weeks",
-              level: "Advanced",
-              price: "₹1,19,999",
-              image: "https://images.pexels.com/photos/356040/pexels-photo-356040.jpeg",
-              features: [
-                "FDA/EMA Regulations",
-                "IND/NDA Submissions",
-                "Clinical Trial Applications",
-                "Compliance Monitoring"
-              ]
-            },
-            {
-              _id: '5',
-              title: "Pharmacovigilance & Drug Safety",
-              description: "Learn drug safety monitoring, adverse event reporting, and risk management in clinical development.",
-              instructor: "Dr. Neha Kapoor",
-              duration: "14 weeks",
-              level: "Intermediate",
-              price: "₹99,999",
-              image: "https://images.pexels.com/photos/2280571/pexels-photo-2280571.jpeg",
-              features: [
-                "Adverse Event Reporting",
-                "Risk Management Plans",
-                "Safety Database Management",
-                "Periodic Safety Reports"
-              ]
-            },
-            {
-              _id: '6',
-              title: "Clinical Data Management",
-              description: "Master clinical data collection, cleaning, and analysis using industry-standard tools and methodologies.",
-              instructor: "Dr. Arjun Reddy",
-              duration: "16 weeks",
-              level: "Intermediate",
-              price: "₹1,09,999",
-              image: "https://images.pexels.com/photos/6476808/pexels-photo-6476808.jpeg",
-              features: [
-                "CDISC Standards",
-                "EDC Systems",
-                "Data Validation",
-                "Statistical Programming"
-              ]
-            },
-            {
-              _id: '7',
-              title: "Clinical Trial Design & Biostatistics",
-              description: "Learn advanced clinical trial design, statistical analysis, and interpretation of clinical data.",
-              instructor: "Prof. Meera Iyer",
-              duration: "20 weeks",
-              level: "Advanced",
-              price: "₹1,39,999",
-              image: "https://images.pexels.com/photos/590041/pexels-photo-590041.jpeg",
-              features: [
-                "Trial Design Methodology",
-                "Statistical Analysis Plans",
-                "Sample Size Calculation",
-                "Interim Analysis"
-              ]
-            }
-          ];
-          console.log("📚 Using AdminDashboard default courses:", courses.length);
-        }
-      }
-
-      setAvailableCourses(courses);
-      return courses;
-
-    } catch (error) {
-      console.error('❌ Error fetching courses:', error);
-      // Fallback to AdminDashboard courses
-      const fallbackCourses = [
-        {
-          _id: '1',
-          title: "Clinical Research Associate",
-          description: "Become a certified Clinical Research Associate with comprehensive training in monitoring, compliance, and trial management.",
-          instructor: "Dr. Ananya Sharma",
-          duration: "16 weeks",
-          level: "Advanced",
-          price: "₹1,29,999",
-          image: "https://images.pexels.com/photos/733856/pexels-photo-733856.jpeg",
-          features: [
-            "Clinical Trial Monitoring",
-            "Regulatory Compliance",
-            "Site Management",
-            "ICH-GCP Certification"
-          ]
-        }
-      ];
-      setAvailableCourses(fallbackCourses);
-      return fallbackCourses;
-    }
   };
 
   // Check if course is approved
@@ -924,114 +882,128 @@ export default function UserDashboard() {
     }, 500);
   };
 
-  // Fetch all user data
+  // Enhanced initialization with proper sequencing
   useEffect(() => {
-    const fetchUserData = async () => {
+    let isMounted = true;
+
+    const initializeDashboard = async () => {
       try {
+        console.log("🚀 Initializing User Dashboard...");
+        
+        // Step 1: Load basic user data (synchronous)
         const userName = localStorage.getItem('userName') || 'Student';
         const userEmail = localStorage.getItem('userEmail') || 'user@example.com';
         const userId = localStorage.getItem('userId') || '';
 
-        setUserData({ userName, userEmail, userId });
+        if (isMounted) {
+          setUserData({ userName, userEmail, userId });
+        }
 
-        // Load profile photo
+        // Step 2: Load profile photo
         const savedProfilePhoto = sessionStorage.getItem('userProfilePhoto') || 
                                 localStorage.getItem('userProfilePhoto');
-        if (savedProfilePhoto) {
+        if (isMounted && savedProfilePhoto) {
           setProfilePhoto(savedProfilePhoto);
         }
 
-        // Load completed items from localStorage
+        // Step 3: Load user progress data
         const savedWatchedVideos = JSON.parse(localStorage.getItem('watchedVideos') || '[]');
-        setWatchedVideos(savedWatchedVideos);
-        
         const savedCompletedNotes = JSON.parse(localStorage.getItem('completedNotes') || '[]');
-        setCompletedNotes(savedCompletedNotes);
-        
         const savedCompletedQuizzes = JSON.parse(localStorage.getItem('completedQuizzes') || '[]');
-        setCompletedQuizzes(savedCompletedQuizzes);
-
-        // Load pending approvals from localStorage
         const savedPendingApprovals = JSON.parse(localStorage.getItem('pendingApprovals') || '[]');
-        setPendingApprovals(savedPendingApprovals);
-
-        // Load approved courses (courses that have been approved by admin after payment)
         const savedApprovedCourses = JSON.parse(localStorage.getItem('approvedCourses') || '[]');
-        setPaidCourses(new Set(savedApprovedCourses));
-        
-        console.log('📋 Loaded approved courses from localStorage:', savedApprovedCourses);
-        console.log('📋 Loaded pending approvals:', savedPendingApprovals);
 
-        // Load certificates from localStorage
+        if (isMounted) {
+          setWatchedVideos(savedWatchedVideos);
+          setCompletedNotes(savedCompletedNotes);
+          setCompletedQuizzes(savedCompletedQuizzes);
+          setPendingApprovals(savedPendingApprovals);
+          setPaidCourses(new Set(savedApprovedCourses));
+        }
+
+        // Step 4: Load certificates
         const savedCertificates = JSON.parse(localStorage.getItem('userCertificates') || '[]');
-        setCertificates(savedCertificates);
+        if (isMounted) {
+          setCertificates(savedCertificates);
+        }
 
-        // Start with no enrolled courses so all courses show enrollment option
-        setEnrolledCourses([]);
+        // Step 5: Start with no enrolled courses
+        if (isMounted) {
+          setEnrolledCourses([]);
+        }
         localStorage.setItem('userEnrollments', JSON.stringify([]));
 
-        // Fetch courses from AdminDashboard
+        // Step 6: Fetch courses (this is async but we handle it separately)
         await fetchCoursesFromAdminDashboard();
 
-        // Load reviews
-        let loadedReviews = [];
+        // Step 7: Load reviews
         try {
+          let loadedReviews = [];
           const reviewsResponse = await fetch('http://localhost:5000/api/reviews');
           if (reviewsResponse.ok) {
             loadedReviews = await reviewsResponse.json();
           } else {
             throw new Error('API not available');
           }
+          
+          if (isMounted) {
+            setReviews(loadedReviews);
+          }
         } catch (error) {
           const localReviews = JSON.parse(localStorage.getItem('clinigoalReviews') || '[]');
-          loadedReviews = localReviews.length > 0 ? localReviews : [
-            {
-              _id: '1',
-              courseId: '1',
-              courseTitle: "Clinical Research Associate",
-              userName: "Anonymous",
-              rating: 5,
-              reviewText: "Excellent course! The instructor was very knowledgeable and the content was comprehensive.",
-              createdAt: new Date().toISOString()
-            }
-          ];
+          if (isMounted) {
+            setReviews(localReviews.length > 0 ? localReviews : []);
+          }
         }
 
-        setReviews(loadedReviews);
-
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        console.error('❌ Error in dashboard initialization:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          console.log("✅ Dashboard initialization complete");
+        }
       }
     };
 
-    // Initialize socket connection
+    // Initialize socket connection separately to not block the main initialization
     const setupSocket = async () => {
-      const newSocket = await initializeSocket();
-      if (newSocket) {
-        setSocket(newSocket);
+      try {
+        const newSocket = await initializeSocket();
+        if (newSocket && isMounted) {
+          setSocket(newSocket);
 
-        // Add real-time listener for approval updates
-        newSocket.on('approvalUpdated', handleApprovalUpdate);
+          // Add real-time listener for approval updates
+          newSocket.on('approvalUpdated', handleApprovalUpdate);
 
-        newSocket.on('paymentStatusUpdate', (updatedPayment) => {
-          console.log('🔄 Payment status updated:', updatedPayment);
-        });
+          newSocket.on('paymentStatusUpdate', (updatedPayment) => {
+            console.log('🔄 Payment status updated:', updatedPayment);
+          });
+        }
+      } catch (socketError) {
+        console.error('❌ Socket initialization failed:', socketError);
       }
     };
 
+    initializeDashboard();
     setupSocket();
-    fetchUserData();
 
     return () => {
+      isMounted = false;
+      console.log("🧹 Cleaning up dashboard...");
       if (socket) {
-        console.log('🧹 Cleaning up socket connection');
         socket.off('approvalUpdated', handleApprovalUpdate);
         socket.close();
       }
     };
   }, []);
+
+  // Add this new function to retry course loading
+  const retryCourseLoading = async () => {
+    console.log("🔄 Retrying course loading...");
+    setCoursesLoading(true);
+    await fetchCoursesFromAdminDashboard();
+  };
 
   // Clean up timer on component unmount
   useEffect(() => {
@@ -2201,7 +2173,7 @@ export default function UserDashboard() {
     );
   };
 
-  // Available Courses Section - UPDATED with approval status
+  // Available Courses Section - FIXED with loading states and retry mechanism
   const renderAvailableCourses = () => {
     const hasApprovedCourses = paidCourses.size > 0;
     const hasPendingApprovals = pendingApprovals.length > 0;
@@ -2212,6 +2184,29 @@ export default function UserDashboard() {
           <h2>Clinigoal Courses</h2>
           <p>Specialized programs for clinical education and career advancement</p>
           
+          {/* Loading State */}
+          {coursesLoading && (
+            <div className="loading-section">
+              <div className="loading-spinner"></div>
+              <p>Loading courses...</p>
+            </div>
+          )}
+          
+          {/* Error State with Retry */}
+          {!coursesLoading && availableCourses.length === 0 && (
+            <div className="error-section">
+              <div className="error-icon">⚠️</div>
+              <h3>Unable to load courses</h3>
+              <p>There was a problem loading the course catalog.</p>
+              <button 
+                onClick={retryCourseLoading}
+                className="btn-primary"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
+
           {hasPendingApprovals && (
             <div className="enrollment-status-banner">
               <div className="status-banner warning">
@@ -2237,7 +2232,8 @@ export default function UserDashboard() {
           )}
         </div>
         
-        {availableCourses.length > 0 ? (
+        {/* Success State */}
+        {!coursesLoading && availableCourses.length > 0 ? (
           <div className="clinigoal-courses-grid">
             {availableCourses.map(course => {
               const approvalStatus = getCourseApprovalStatus(course._id);
@@ -2304,11 +2300,17 @@ export default function UserDashboard() {
               );
             })}
           </div>
-        ) : (
+        ) : !coursesLoading && (
           <div className="empty-state">
             <div className="empty-icon">🎯</div>
             <h3>No Courses Available</h3>
             <p>There are currently no courses available for enrollment.</p>
+            <button 
+              onClick={retryCourseLoading}
+              className="btn-primary"
+            >
+              Refresh Courses
+            </button>
           </div>
         )}
         

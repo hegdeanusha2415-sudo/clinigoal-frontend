@@ -37,7 +37,7 @@ import MedicalCodingPage from "./pages/CoursesPage/MedicalCoding";
 import PharmacovigilancePage from "./pages/CoursesPage/PharmacovigilancePage";
 
 // ---------------- Dashboards ----------------
-import AdminDashboard from "./components/AdminDashboard/AdminDashboard";
+import AdminDashboard from "./components/Admin/AdminDashboard";
 import UserDashboard from "./components/UserDashboard/UserDashboard";
 
 // ✅ REGISTER ChartJS *AFTER ALL IMPORTS*

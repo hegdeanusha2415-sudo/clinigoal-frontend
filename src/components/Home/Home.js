@@ -163,15 +163,7 @@ function HomePage() {
       duration: "5 months",
       level: "Beginner"
     },
-    { 
-      id: 4, 
-      title: "Medical Coding Specialist", 
-      description: "Comprehensive training in medical billing, coding systems, and healthcare compliance.", 
-      category: "clinical", 
-      image: "https://images.unsplash.com/photo-1585435557343-3b092031d5ad?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-      duration: "4 months",
-      level: "Beginner"
-    },
+   
     { 
       id: 5, 
       title: "Pharmacovigilance Science", 
@@ -181,15 +173,7 @@ function HomePage() {
       duration: "7 months",
       level: "Intermediate"
     },
-    { 
-      id: 6, 
-      title: "Healthcare Project Management", 
-      description: "Lead complex projects within the healthcare and pharmaceutical sector.", 
-      category: "management", 
-      image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-      duration: "6 months",
-      level: "Advanced"
-    },
+    
   ];
 
   const filteredPrograms =
@@ -251,7 +235,7 @@ function HomePage() {
 
       {/* Clean Professional Header */}
       <header className="clean-header">
-        <div className="header-content">
+       <div className="header-content">
           {/* Logo */}
           <div className="logo">
             <span className="logo-icon">🩺</span>
@@ -349,11 +333,9 @@ function HomePage() {
                   <div className="auth-dropdown">
                     <button onClick={handleAdminLogin}>Admin Login</button>
                     <button onClick={handleUserLogin}>User Login</button>
-                    <button onClick={() => setShowAdminDropdown(false)}>Faculty Login</button>
                   </div>
                 )}
               </div>
-              <button className="cta-btn">Start Learning</button>
             </div>
           </div>
         </div>
@@ -578,4 +560,4 @@ function HomePage() {
   );
 }
 
-export default HomePage;
+export default HomePage; 
